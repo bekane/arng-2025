@@ -1,0 +1,61 @@
+services:
+  broker:
+    build:
+      context: ./docker/mosquitto
+      dockerfile: Dockerfile
+    container_name: tp-mqtt-broker
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./docker/mosquitto:/mosquitto/config
+      - mosquitto-data:/mosquitto/data
+
+  influxdb:
+    image: influxdb:2.7
+    container_name: tp-mqtt-influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=ares
+      - DOCKER_INFLUXDB_INIT_PASSWORD=aresares
+      - DOCKER_INFLUXDB_INIT_ORG=ares
+      - DOCKER_INFLUXDB_INIT_BUCKET=entrepot
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=dev-token
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/python-app.Dockerfile
+    container_name: tp-mqtt-api
+    command: ["uvicorn", "services.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      - INFLUX_URL=http://influxdb:8086
+      - INFLUX_TOKEN=dev-token
+      - INFLUX_ORG=ares
+      - INFLUX_BUCKET=entrepot
+    ports:
+      - "8000:8000"
+    depends_on:
+      - influxdb
+    volumes:
+      - .:/app
+
+  sensor:
+    build:
+      context: .
+      dockerfile: docker/python-app.Dockerfile
+    container_name: tp-mqtt-sensor
+    command: ["python", "services/sensor/main.py"]
+    depends_on:
+      - broker
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - .:/app
+
+volumes:
+  influxdb-data:
+  mosquitto-data:

@@ -1,0 +1,4 @@
+fastapi==0.110.0
+uvicorn==0.29.0
+influxdb-client==1.41.0
+paho-mqtt==2.1.0
